@@ -33,6 +33,8 @@ impl Message {
                     Request::Ping(p) => payload.append(&mut p.as_ssz_bytes()),
                     Request::FindNodes(p) => payload.append(&mut p.as_ssz_bytes()),
                     Request::FindContent(p) => payload.append(&mut p.as_ssz_bytes()),
+                    // for Advertise request
+                    Request::Advertise(p) => payload.append(&mut p.as_ssz_bytes()),
                 }
                 payload
             }
@@ -90,6 +92,8 @@ pub enum Request {
     Ping(Ping),
     FindNodes(FindNodes),
     FindContent(FindContent),
+    // Advertise request
+    Advertise(Advertise)
 }
 
 impl Request {
@@ -98,6 +102,8 @@ impl Request {
             Request::Ping(_) => 1,
             Request::FindNodes(_) => 3,
             Request::FindContent(_) => 5,
+            // ADVERTISE MESSAGE_ID
+            Request::Advertise(_) => 7,
         }
     }
 }
@@ -148,6 +154,12 @@ pub struct Nodes {
 struct NodesHelper {
     total: u8,
     enrs: Vec<Vec<u8>>,
+}
+
+// For ADVERTISE request
+#[derive(Debug, PartialEq, Clone, Encode, Decode)] // what does this do??
+pub struct Advertise {
+  pub content_keys: Vec<u8>
 }
 
 impl From<&Nodes> for NodesHelper {

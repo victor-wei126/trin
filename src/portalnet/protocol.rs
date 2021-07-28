@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use super::{
     discovery::{Config as DiscoveryConfig, Discovery},
-    types::{FindContent, FindNodes, FoundContent, Nodes, Ping, Pong, Request, Response, SszEnr},
+    types::{FindContent, FindNodes, FoundContent, Nodes, Ping, Pong, Request, Response, SszEnr, Advertise},
     utils::get_data_dir,
     U256,
 };
@@ -177,6 +177,15 @@ impl PortalnetEvents {
                 }
                 Err(e) => panic!("Unable to respond to FindContent: {}", e),
             },
+            // ADD CASE FOR ADVERTISE MESSAGE...is this for debugging...seems like receiving response
+            Request::Advertise(Advertise { content_keys }) => {
+                // generate the uTP connection_id
+                let connection_id = utp_connection_id;
+                Response::RequestProofs(RequestProofs {
+                    connection_id,
+                    content_keys,
+                })
+            }
         };
 
         Ok(response)
@@ -243,11 +252,15 @@ impl PortalnetProtocol {
     }
 
     pub async fn send_ping(&self, data_radius: U256, enr: Enr) -> Result<Vec<u8>, String> {
+        // fetches the enr sequence of the local node--uses discv5 package
         let enr_seq = self.discovery.local_enr().seq();
+        // Ping is a struct imported from types.rs
+        // the enr_seq and data_radius (parameter) are passed appropriately as struct fields, as the spec specifies
         let msg = Ping {
             enr_seq,
             data_radius,
         };
+        // encapsulate message in a talkreq message
         self.discovery
             .send_talkreq(enr, Message::Request(Request::Ping(msg)).to_bytes())
             .await
@@ -282,5 +295,12 @@ impl PortalnetProtocol {
             debug!("Portal network Ping result: {:?}", ping_result);
         }
         Ok(())
+    }
+
+    pub async fn send_advertise(&self, content_keys: Vec<u8>, enr: Enr) -> Result<Vec<u8>, String> {
+      let msg = Advertise { content_keys };
+      self.discovery
+          .send_talkreq(enr, Message::Request(Request::Advertise(msg)).to_bytes())
+          .await
     }
 }
