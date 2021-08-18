@@ -372,7 +372,7 @@ fn get_time_diff(response_time: u32) -> u32 {
     }
 }
 
-fn rand() -> u16 {
+pub fn rand() -> u16 {
     rand::thread_rng().gen()
 }
 

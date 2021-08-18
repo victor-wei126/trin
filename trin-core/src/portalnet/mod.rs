@@ -65,6 +65,12 @@ impl ssz::Decode for U256 {
     }
 }
 
+// impl From<String> for U256 {
+//     fn from(string: String) -> Self {
+//         pub struct U256()
+//     }
+// }
+
 #[cfg(test)]
 mod test {
     use super::*;
