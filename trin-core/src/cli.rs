@@ -32,6 +32,8 @@ pub struct TrinConfig {
     )]
     pub web3_http_port: u16,
 
+
+    
     #[structopt(
         default_value(DEFAULT_WEB3_IPC_PATH),
         long = "web3-ipc-path",
