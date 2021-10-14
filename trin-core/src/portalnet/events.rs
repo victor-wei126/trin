@@ -4,17 +4,20 @@ use discv5::{Discv5Event, TalkRequest};
 use log::{debug, warn};
 use tokio::sync::mpsc;
 
+use super::discovery::Discovery;
+use super::discovery::Discovery;
 use super::types::ProtocolId;
-use super::{discovery::Discovery, utp::UtpListener};
+use crate::locks::RwLoggingExt;
+use crate::utp::utp::UtpListener;
+use crate::utp::utp_types::{UtpAccept, UtpMessage, UtpMessageId};
 use hex;
-use std::collections::HashMap;
-use std::convert::TryInto;
+use ssz::Decode;
 use std::str::FromStr;
 
 pub struct PortalnetEvents {
     pub discovery: Arc<Discovery>,
     pub protocol_receiver: mpsc::Receiver<Discv5Event>,
-    pub utp_listener: UtpListener,
+    pub utp_listener: Arc<RwLock<UtpListener>>,
     pub history_sender: Option<mpsc::UnboundedSender<TalkRequest>>,
     pub state_sender: Option<mpsc::UnboundedSender<TalkRequest>>,
 }
@@ -22,6 +25,7 @@ pub struct PortalnetEvents {
 impl PortalnetEvents {
     pub async fn new(
         discovery: Arc<Discovery>,
+        utp_listener: Arc<RwLock<UtpListener>>,
         history_sender: Option<mpsc::UnboundedSender<TalkRequest>>,
         state_sender: Option<mpsc::UnboundedSender<TalkRequest>>,
     ) -> Self {
@@ -31,11 +35,6 @@ impl PortalnetEvents {
             .await
             .map_err(|e| e.to_string())
             .unwrap();
-
-        let utp_listener = UtpListener {
-            discovery: Arc::clone(&discovery),
-            utp_connections: HashMap::new(),
-        };
 
         Self {
             discovery: Arc::clone(&discovery),
@@ -89,6 +88,8 @@ impl PortalnetEvents {
                     }
                     ProtocolId::Utp => {
                         self.utp_listener
+                            .write_with_warn()
+                            .await
                             .process_utp_request(request.body(), request.node_id())
                             .await;
                         self.process_utp_byte_stream().await;
@@ -110,20 +111,49 @@ impl PortalnetEvents {
     // This could be handled in the UtpListener impl, but for consistency with data handling
     // and clarity it can be put here
     async fn process_utp_byte_stream(&mut self) {
-        for (_, conn) in self.utp_listener.utp_connections.iter_mut() {
+        for (_, conn) in self
+            .utp_listener
+            .write_with_warn()
+            .await
+            .utp_connections
+            .iter_mut()
+        {
             let received_stream = conn.recv_data_stream.clone();
-            if received_stream.is_empty() {
-                continue;
-            }
 
-            let message_len = u32::from_be_bytes(received_stream[0..4].try_into().unwrap());
+            match UtpMessage::decode(&received_stream[..]) {
+                Ok(message) => {
+                    match self
+                        .utp_listener
+                        .read_with_warn()
+                        .await
+                        .listening
+                        .get(&conn.conn_id_recv)
+                    {
+                        Some(message_type) => match message_type {
+                            UtpMessageId::OfferAcceptStream => {
+                                let payload = UtpAccept::from_ssz_bytes(&message.payload[..])
+                                    .unwrap()
+                                    .message;
 
-            if message_len + 4 >= received_stream.len() as u32 {
-                // handle data function(&received_stream[4..(message_len + 4)]
+                                for (key, content) in payload {
+                                    store(key, content).unwrap();
+                                }
+                            }
+                        },
+                        _ => warn!("uTP listening HashMap doesn't have uTP stream message type"),
+                    }
 
-                // Removed the handled data from the buffer
-                conn.recv_data_stream = received_stream[((message_len + 4) as usize)..].to_owned();
+                    // message was successfully handled, remove it from the buffer
+                    conn.recv_data_stream = received_stream[(message.len() as usize)..].to_owned();
+                }
+                // Ignore messages which are too short
+                _ => {}
             }
         }
     }
+}
+
+// stub function for overlay store
+fn store(_key: Vec<u8>, _content: Vec<u8>) -> Result<(), String> {
+    Ok(())
 }

@@ -10,7 +10,7 @@ use rlp::Encodable;
 use serde_json::Value;
 use ssz::{Decode, DecodeError, Encode};
 use ssz_derive::{Decode, Encode};
-use ssz_types::{typenum, VariableList};
+use ssz_types::{typenum, BitList, VariableList};
 use thiserror::Error;
 
 use super::overlay_service::OverlayRequestError;
@@ -183,8 +183,7 @@ impl Message {
                         .map_err(|e| MessageDecodeError::from(e))?,
                 ))),
                 6 => Ok(Message::Request(Request::Offer(
-                    Offer::from_ssz_bytes(&bytes[1..])
-                        .map_err(|e| MessageDecodeError::from(e))?,
+                    Offer::from_ssz_bytes(&bytes[1..]).map_err(|e| MessageDecodeError::from(e))?,
                 ))),
                 // Responses
                 2 => Ok(Message::Response(Response::Pong(
@@ -198,8 +197,7 @@ impl Message {
                         .map_err(|e| MessageDecodeError::from(e))?,
                 ))),
                 7 => Ok(Message::Response(Response::Accept(
-                  Accept::from_ssz_bytes(&bytes[1..])
-                      .map_err(|e| MessageDecodeError::from(e))?,
+                    Accept::from_ssz_bytes(&bytes[1..]).map_err(|e| MessageDecodeError::from(e))?,
                 ))),
                 _ => Err(MessageDecodeError::MessageId),
             }
@@ -440,7 +438,7 @@ pub struct Offer {
 #[derive(Debug, PartialEq, Clone, Encode, Decode)]
 pub struct Accept {
     pub connection_id: u16,
-    pub content_keys: Vec<bool>,
+    pub content_keys: BitList<typenum::U8>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -734,5 +732,43 @@ mod test {
         assert_eq!(hex::encode(message.to_bytes()), expected);
         let decoded = Message::from_bytes(message.to_bytes().as_slice()).unwrap();
         assert_eq!(decoded, message);
+    }
+
+    #[test]
+    fn test_offer_request() {
+        let mut content_keys: Vec<Vec<u8>> = Default::default();
+        content_keys.push(vec![1, 2, 3]);
+
+        let request = Offer {
+            content_keys: content_keys.clone(),
+        };
+
+        let encoded = request.as_ssz_bytes();
+        assert_eq!(hex::encode(encoded.clone()), "0400000004000000010203");
+
+        let decoded = Offer::from_ssz_bytes(&encoded[..]);
+        assert!(decoded.is_ok());
+        let decoded = decoded.unwrap();
+        assert_eq!(decoded.content_keys, content_keys);
+    }
+
+    #[test]
+    fn test_accept_response() {
+        let mut content_keys = BitList::with_capacity(8).unwrap();
+        content_keys.set(0, true).unwrap();
+
+        let response = Accept {
+            connection_id: 513,
+            content_keys: content_keys.clone(),
+        };
+
+        let encoded = response.as_ssz_bytes();
+        assert_eq!(hex::encode(encoded.clone()), "0102060000000101");
+        let decoded = Accept::from_ssz_bytes(&encoded[..]);
+        assert!(decoded.is_ok());
+        let decoded = decoded.unwrap();
+
+        assert_eq!(decoded.connection_id, 513);
+        assert_eq!(decoded.content_keys, content_keys);
     }
 }

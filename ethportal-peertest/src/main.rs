@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use log::{debug, info};
 use structopt::StructOpt;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, RwLock};
 
 use ethportal_peertest::cli::PeertestConfig;
 use ethportal_peertest::events::PortalnetEvents;
@@ -19,10 +19,10 @@ use trin_core::portalnet::{
     discovery::Discovery,
     overlay::{OverlayConfig, OverlayProtocol},
     types::{PortalnetConfig, ProtocolId},
-    utp::UtpListener,
     U256,
 };
 use trin_core::utils::db::setup_overlay_db;
+use trin_core::utp::utp::UtpListener;
 use trin_history::initialize_history_network;
 use trin_state::initialize_state_network;
 
@@ -49,12 +49,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map_err(|e| e.to_string())
             .unwrap();
 
+        let utp_listener = Arc::new(RwLock::new(UtpListener {
+            discovery: Arc::clone(&discovery),
+            utp_connections: HashMap::new(),
+            listening: HashMap::new(),
+        }));
+
         let db = Arc::new(setup_overlay_db(discovery.local_enr().node_id()));
 
         let history_overlay = Arc::new(
             OverlayProtocol::new(
                 OverlayConfig::default(),
                 Arc::clone(&discovery),
+                Arc::clone(&utp_listener),
                 Arc::clone(&db),
                 U256::max_value(),
                 ProtocolId::History,
@@ -66,6 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             OverlayProtocol::new(
                 OverlayConfig::default(),
                 Arc::clone(&discovery),
+                Arc::clone(&utp_listener),
                 Arc::clone(&db),
                 U256::max_value(),
                 ProtocolId::State,
@@ -76,6 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let utp_listener = UtpListener {
             discovery: Arc::clone(&discovery),
             utp_connections: HashMap::new(),
+            listening: Default::default(),
         };
 
         let infura_project_id = match env::var("TRIN_INFURA_PROJECT_ID") {

@@ -1,19 +1,19 @@
 use discv5::Discv5Event;
 use hex;
 use log::{debug, error, warn};
-use std::convert::TryInto;
 use std::str::FromStr;
 use std::sync::Arc;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, RwLock};
+use trin_core::locks::RwLoggingExt;
 use trin_core::portalnet::overlay::OverlayProtocol;
 use trin_core::portalnet::types::{Message, ProtocolId};
-use trin_core::portalnet::utp::UtpListener;
+use trin_core::utp::utp::UtpListener;
 
 pub struct PortalnetEvents {
     pub history_overlay: Arc<OverlayProtocol>,
     pub state_overlay: Arc<OverlayProtocol>,
     pub protocol_rx: mpsc::Receiver<Discv5Event>,
-    pub utp_listener: UtpListener,
+    pub utp_listener: Arc<RwLock<UtpListener>>,
 }
 
 impl PortalnetEvents {
@@ -21,7 +21,7 @@ impl PortalnetEvents {
         history_overlay: Arc<OverlayProtocol>,
         state_overlay: Arc<OverlayProtocol>,
         protocol_rx: mpsc::Receiver<Discv5Event>,
-        utp_listener: UtpListener,
+        utp_listener: Arc<RwLock<UtpListener>>,
     ) -> Self {
         Self {
             history_overlay,
@@ -73,6 +73,8 @@ impl PortalnetEvents {
                     }
                     ProtocolId::Utp => {
                         self.utp_listener
+                            .write_with_warn()
+                            .await
                             .process_utp_request(request.body(), request.node_id())
                             .await;
                         self.process_utp_byte_stream().await
@@ -94,7 +96,7 @@ impl PortalnetEvents {
     // This could be handled in the UtpListener impl, but for consistency with data handling
     // and clarity it can be put here
     async fn process_utp_byte_stream(&mut self) {
-        for (_, conn) in self.utp_listener.utp_connections.iter_mut() {
+        for (_, conn) in self.utp_listener.write().await.utp_connections.iter_mut() {
             let received_stream = conn.recv_data_stream.clone();
             if received_stream.is_empty() {
                 continue;

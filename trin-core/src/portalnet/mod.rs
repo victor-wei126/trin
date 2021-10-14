@@ -9,7 +9,6 @@ pub mod events;
 pub mod overlay;
 pub mod storage;
 pub mod types;
-pub mod utp;
 
 mod overlay_service;
 
@@ -64,12 +63,6 @@ impl ssz::Decode for U256 {
         }
     }
 }
-
-// impl From<String> for U256 {
-//     fn from(string: String) -> Self {
-//         pub struct U256()
-//     }
-// }
 
 #[cfg(test)]
 mod test {
