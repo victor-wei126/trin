@@ -258,7 +258,7 @@ impl OverlayProtocol {
         &self,
         response: Accept,
         enr: Enr,
-        content_keys_items: Vec<Vec<u8>>,
+        content_keys_offered: Vec<Vec<u8>>,
     ) -> Accept {
         let connection_id = response.connection_id.clone();
 
@@ -278,12 +278,14 @@ impl OverlayProtocol {
             .connect(connection_id.clone(), enr.node_id(), tx)
             .await;
 
+        // Return to acceptor: the content key and corresponding data
         let mut content_items: Vec<(Vec<u8>, Vec<u8>)> = vec![];
+
         for (i, key) in response
             .content_keys
             .clone()
             .iter()
-            .zip(content_keys_items.iter())
+            .zip(content_keys_offered.iter())
         {
             if i == true {
                 match self.db.get(key.clone()) {
@@ -291,6 +293,7 @@ impl OverlayProtocol {
                         Some(content) => content_items.push((key.clone(), content)),
                         None => {}
                     },
+                    // should return some error if content not found
                     Err(_) => {}
                 }
             }
@@ -313,6 +316,7 @@ impl OverlayProtocol {
                             conn_id_recv: connection_id,
                         })
                     {
+                        // send the content to the acceptor over a uTP stream
                         conn.write(&UtpMessage::new(content_message.as_ssz_bytes()).encode()[..])
                             .await;
                     }
