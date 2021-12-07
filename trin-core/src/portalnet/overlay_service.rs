@@ -314,6 +314,13 @@ impl OverlayService {
             requested_keys.set(i, should_store(key))
                 .map_err(|e| OverlayRequestError::AcceptError(e))?;
         }
+        // need to add connection_id to utp since we need to listen for requests on it??
+        // add to UtpListener.listening
+        // self.utp_listener
+        //     .write_with_warn()
+        //     .await
+        //     .listening
+        //     .insert(connection_id.clone() + 1, UtpMessageId::OfferAcceptStream);
 
         let accept = Accept {
             connection_id,

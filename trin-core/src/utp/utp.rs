@@ -566,7 +566,7 @@ impl UtpStream {
         }
     }
 
-    // If you want to send a payload call this it is basically just write
+    /// Writes a message to the uTP stream
     pub async fn write(&mut self, message: &[u8]) {
         for chunk in message.chunks(MAX_DISCV5_PACKET_SIZE - MIN_DISCV5_PACKET_SIZE - HEADER_SIZE) {
             let mut response = PacketHeader::new();

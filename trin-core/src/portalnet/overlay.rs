@@ -264,14 +264,14 @@ impl OverlayProtocol {
 
         let (tx, mut rx) = mpsc::unbounded_channel::<UtpStreamState>();
 
-        // Add connection_id we will be receiving to the listening list and the
-        // response number. The connection_id is + 1 because that is their id
+        // Offerer will listen for responses on conn_id + 1, per the uTP spec.
         self.utp_listener
             .write_with_warn()
             .await
             .listening
             .insert(connection_id.clone() + 1, UtpMessageId::OfferAcceptStream);
 
+        // initiate the connection to the acceptor
         self.utp_listener
             .write_with_warn()
             .await
