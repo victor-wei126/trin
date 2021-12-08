@@ -86,7 +86,7 @@ pub enum OverlayRequestError {
 
     /// Error types resulting from building ACCEPT message
     #[error("Error while building accept message")]
-    AcceptError(ssz_types::Error)
+    AcceptError(ssz_types::Error),
 }
 
 impl From<discv5::RequestError> for OverlayRequestError {
@@ -254,9 +254,7 @@ impl OverlayService {
             Request::FindContent(find_content) => Ok(Response::Content(
                 self.handle_find_content(find_content).await?,
             )),
-            Request::Offer(offer) => {
-                Ok(Response::Accept(self.handle_offer(offer).await?))
-            }
+            Request::Offer(offer) => Ok(Response::Accept(self.handle_offer(offer).await?)),
         }
     }
 
@@ -311,7 +309,8 @@ impl OverlayService {
         for (i, key) in request.content_keys.iter().enumerate() {
             // should_store is currently a dummy function
             // the actual function will take ContentKey type, so we'll  have to decode keys here
-            requested_keys.set(i, should_store(key))
+            requested_keys
+                .set(i, should_store(key))
                 .map_err(|e| OverlayRequestError::AcceptError(e))?;
         }
         // need to add connection_id to utp since we need to listen for requests on it??
