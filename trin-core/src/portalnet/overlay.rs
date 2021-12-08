@@ -22,7 +22,7 @@ use discv5::{
 use futures::channel::oneshot;
 use rocksdb::DB;
 use ssz::Encode;
-use tokio::sync::{mpsc::UnboundedSender, RwLock};
+use tokio::sync::{mpsc, mpsc::UnboundedSender, RwLock};
 use tracing::{debug, warn};
 
 pub use super::overlay_service::OverlayRequestError;

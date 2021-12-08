@@ -2,7 +2,7 @@ use std::env;
 use std::sync::Arc;
 
 use log::debug;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, RwLock};
 
 use std::collections::HashMap;
 use trin_core::jsonrpc::handlers::JsonRpcHandler;

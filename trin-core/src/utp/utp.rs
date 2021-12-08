@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-use crate::locks::RwLoggingExt;
 use crate::portalnet::discovery::Discovery;
 use core::convert::TryFrom;
 use discv5::enr::NodeId;
@@ -11,7 +10,7 @@ use std::cmp::{max, min};
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::mpsc;
 
 use crate::portalnet::types::ProtocolId;
 use crate::utp::utp_types::{UtpMessageId, UtpStreamState};
@@ -446,7 +445,7 @@ impl UtpListener {
                         }
                     }
                     PacketType::Syn => {
-                        if let Some(enr) = self.discovery.discv5.find_enr(&node_id) {
+                        if let Some(enr) = self.discovery.discv5.find_enr(node_id) {
                             // If neither of those cases happened handle this is a new request
                             let (tx, _) = mpsc::unbounded_channel::<UtpStreamState>();
                             let mut conn = UtpStream::init(Arc::clone(&self.discovery), enr, tx);

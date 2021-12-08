@@ -2,9 +2,8 @@ use std::sync::Arc;
 
 use discv5::{Discv5Event, TalkRequest};
 use log::{debug, warn};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, RwLock};
 
-use super::discovery::Discovery;
 use super::discovery::Discovery;
 use super::types::ProtocolId;
 use crate::locks::RwLoggingExt;

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use eth_trie::EthTrie;
 use log::debug;
 use rocksdb::DB;
+use tokio::sync::RwLock;
 use trin_core::portalnet::{
     discovery::Discovery,
     overlay::{OverlayConfig, OverlayProtocol, OverlayRequestError},
