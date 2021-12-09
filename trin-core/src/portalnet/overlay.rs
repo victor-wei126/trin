@@ -92,6 +92,7 @@ impl OverlayProtocol {
             Arc::clone(&kbuckets),
             Arc::clone(&data_radius),
             protocol.clone(),
+            utp_listener.clone(),
         )
         .await
         .unwrap();

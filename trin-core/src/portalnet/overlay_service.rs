@@ -27,6 +27,8 @@ use tokio::sync::{
     mpsc::{self, UnboundedReceiver, UnboundedSender},
     RwLock,
 };
+use crate::utp::utp::UtpListener;
+use crate::utp::utp_types::UtpMessageId;
 
 /// Maximum number of ENRs in response to FindNodes.
 pub const FIND_NODES_MAX_NODES: usize = 32;
@@ -163,6 +165,7 @@ pub struct OverlayService {
     // TODO: This should probably be a bounded channel.
     /// The receiver half of the service request channel.
     request_rx: UnboundedReceiver<OverlayRequest>,
+    utp_listener: Arc<RwLock<UtpListener>>
 }
 
 impl OverlayService {
@@ -177,6 +180,7 @@ impl OverlayService {
         kbuckets: Arc<RwLock<KBucketsTable<NodeId, Node>>>,
         data_radius: Arc<U256>,
         protocol: ProtocolId,
+        utp_listener: Arc<RwLock<UtpListener>>,
     ) -> Result<UnboundedSender<OverlayRequest>, String> {
         let (request_tx, request_rx) = mpsc::unbounded_channel();
         let overlay_protocol = protocol.clone();
@@ -189,6 +193,7 @@ impl OverlayService {
                 data_radius,
                 protocol,
                 request_rx,
+                utp_listener,
             };
 
             info!("Starting {:?} overlay service", overlay_protocol);
@@ -313,13 +318,12 @@ impl OverlayService {
                 .set(i, should_store(key))
                 .map_err(|e| OverlayRequestError::AcceptError(e))?;
         }
-        // need to add connection_id to utp since we need to listen for requests on it??
-        // add to UtpListener.listening
-        // self.utp_listener
-        //     .write_with_warn()
-        //     .await
-        //     .listening
-        //     .insert(connection_id.clone() + 1, UtpMessageId::OfferAcceptStream);
+        // need to add connection_id to utp since we need to listen for requests on it
+        self.utp_listener
+            .write_with_warn()
+            .await
+            .listening
+            .insert(connection_id.clone(), UtpMessageId::OfferAcceptStream);
 
         let accept = Accept {
             connection_id,
