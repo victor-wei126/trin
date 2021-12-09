@@ -81,11 +81,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .await,
         );
 
-        let utp_listener = UtpListener {
+        let utp_listener = Arc::new(RwLock::new(UtpListener {
             discovery: Arc::clone(&discovery),
             utp_connections: HashMap::new(),
             listening: Default::default(),
-        };
+        }));
 
         let infura_project_id = match env::var("TRIN_INFURA_PROJECT_ID") {
             Ok(val) => val,
@@ -97,11 +97,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Initialize state sub-network service and event handlers, if selected
         let (state_handler, state_network_task, _state_event_tx, state_jsonrpc_tx) =
-            initialize_state_network(&discovery, portal_config.clone(), Arc::clone(&db)).await;
+            initialize_state_network(
+                &discovery,
+                &utp_listener,
+                portal_config.clone(),
+                Arc::clone(&db),
+            )
+            .await;
 
         // Initialize chain history sub-network service and event handlers, if selected
         let (history_handler, history_network_task, _history_event_tx, history_jsonrpc_tx) =
-            initialize_history_network(&discovery, portal_config.clone(), Arc::clone(&db)).await;
+            initialize_history_network(
+                &discovery,
+                &utp_listener,
+                portal_config.clone(),
+                Arc::clone(&db),
+            )
+            .await;
 
         // Initialize json-rpc server
         let (portal_jsonrpc_tx, portal_jsonrpc_rx) =
